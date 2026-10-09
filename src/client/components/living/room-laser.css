@@ -1,0 +1,15 @@
+.lr-laser { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.lr-laser-capture { position: absolute; pointer-events: auto; cursor: crosshair; touch-action: none; }
+.lr-laser-view { position: absolute; pointer-events: none; }
+.lr-laser-trails { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lr-laser-dot {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: currentColor;
+  box-shadow: 0 0 8px 2px currentColor;
+}
+.lr-laser-name {
+  position: absolute; left: 100%; top: 50%; transform: translate(10px, -50%);
+  padding: 1px 8px; border-radius: 999px; background: rgb(15 25 35 / .68);
+  color: #fff; font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap;
+}
+.lr-laser-toggle { position: absolute; top: 8px; right: 8px; pointer-events: auto; }

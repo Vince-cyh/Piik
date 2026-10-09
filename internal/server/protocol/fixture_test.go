@@ -57,6 +57,7 @@ func TestFixtureConstants(t *testing.T) {
 		"maxDisplayNameCodePoints":            float64(MaxDisplayNameCodePoints),
 		"maxChatCodePoints":                   float64(MaxChatCodePoints),
 		"interactionIntervalMs":               float64(InteractionIntervalMs),
+		"laserIntervalMs":                     float64(LaserIntervalMs),
 		"defaultViewerDisplayName":            DefaultViewerDisplayName,
 		"defaultHostDisplayNamePrefix":        DefaultHostDisplayNamePrefix,
 		"minViewerPasswordLength":             float64(MinViewerPasswordLength),

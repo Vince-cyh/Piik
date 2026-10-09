@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-import { INTERACTION_INTERVAL_MS, MAX_CHAT_CODE_POINTS } from "../src/shared/room-interactions";
+import { INTERACTION_INTERVAL_MS, LASER_INTERVAL_MS, MAX_CHAT_CODE_POINTS } from "../src/shared/room-interactions";
 
 import {
   DEFAULT_ENDPOINT_MEDIA_COPY_CAPACITY,
@@ -86,6 +86,7 @@ describe("shared wire fixture", () => {
       maxDisplayNameCodePoints: MAX_DISPLAY_NAME_CODE_POINTS,
       maxChatCodePoints: MAX_CHAT_CODE_POINTS,
       interactionIntervalMs: INTERACTION_INTERVAL_MS,
+      laserIntervalMs: LASER_INTERVAL_MS,
       defaultViewerDisplayName: DEFAULT_VIEWER_DISPLAY_NAME,
       defaultHostDisplayNamePrefix: DEFAULT_HOST_DISPLAY_NAME_PREFIX,
       minViewerPasswordLength: MIN_VIEWER_PASSWORD_LENGTH,

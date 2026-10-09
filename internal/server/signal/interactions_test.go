@@ -66,6 +66,45 @@ func TestRoomInteractionsStayInsideAuthorizedOptedInMembership(t *testing.T) {
 	viewer.next("signaling-challenge-response")
 }
 
+func TestRoomLaserPointerRunsOnItsOwnPace(t *testing.T) {
+	var now atomic.Int64
+	now.Store(100_000)
+	h := startHarness(t, harnessOptions{now: now.Load})
+	host, viewer := openClient(t, h), openClient(t, h)
+	authenticate(t, host, h.room, protocol.RoleHost, "host_laser", -1, "", presenceOptions{displayName: "房主", viewerPresence: true})
+	authenticate(t, viewer, h.room, protocol.RoleViewer, "viewer_laser", -1, "", presenceOptions{displayName: "小明", viewerPresence: true})
+	for _, client := range []*testClient{host, viewer} {
+		subscribeInteractions(t, client)
+	}
+	laser := func(requestID string, x, y float64, phase string) {
+		viewer.sendJSON(map[string]any{"type": "send-room-interaction", "requestId": requestID,
+			"payload": map[string]any{"kind": "laser", "x": x, "y": y, "phase": phase}})
+	}
+	laser("laser_request_1", 0.25, 0.75, "down")
+	event := host.next("room-interaction")
+	viewerEvent := viewer.next("room-interaction")
+	if string(event.raw) != string(viewerEvent.raw) {
+		t.Fatal("recipients received different laser events")
+	}
+	// Pointer motion flows at laser pace, well inside the chat interval.
+	now.Add(protocol.LaserIntervalMs)
+	laser("laser_request_2", 0.5, 0.5, "move")
+	host.next("room-interaction")
+	// ...but still bounded: an immediate third update is paced.
+	laser("laser_request_3", 0.75, 0.25, "move")
+	expectMatch(t, viewer.next("room-interaction-rejected").raw, `{"reason":"rate-limited"}`)
+	// Laser traffic never delays chat, which keeps its own slower clock.
+	now.Add(protocol.LaserIntervalMs)
+	viewer.sendJSON(map[string]any{"type": "send-room-interaction", "requestId": "chat_after_laser",
+		"payload": map[string]any{"kind": "chat", "text": "看到激光笔了吗"}})
+	host.next("room-interaction")
+	viewer.next("room-interaction")
+	// And chat does not push the pointer back either.
+	now.Add(protocol.LaserIntervalMs)
+	laser("laser_request_4", 0.5, 0.5, "up")
+	host.next("room-interaction")
+}
+
 func TestRoomInteractionRequiresAuthenticationAndSubscription(t *testing.T) {
 	h := startHarness(t, harnessOptions{})
 	guest := openClient(t, h)

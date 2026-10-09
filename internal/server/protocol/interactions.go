@@ -11,11 +11,18 @@ import (
 const MaxChatCodePoints = 280
 const InteractionIntervalMs = 800
 
+// Laser pointer updates run on their own, faster pace: a pointer that moved
+// at chat speed would visibly stutter, while chat must stay calm.
+const LaserIntervalMs = 60
+
 type InteractionPayload struct {
-	Kind         string `json:"kind"`
-	Text         string `json:"text,omitempty"`
-	Reaction     string `json:"reaction,omitempty"`
-	TargetPeerID string `json:"targetPeerId,omitempty"`
+	Kind         string   `json:"kind"`
+	Text         string   `json:"text,omitempty"`
+	Reaction     string   `json:"reaction,omitempty"`
+	TargetPeerID string   `json:"targetPeerId,omitempty"`
+	X            *float64 `json:"x,omitempty"`
+	Y            *float64 `json:"y,omitempty"`
+	Phase        string   `json:"phase,omitempty"`
 }
 
 func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
@@ -34,6 +41,7 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if fields.has("reaction") || fields.has("targetPeerId") ||
+			fields.has("x") || fields.has("y") || fields.has("phase") ||
 			hasUnpairedSurrogateEscape(fields["text"]) || !validChatText(value.Text) {
 			return errors.New("invalid chat payload")
 		}
@@ -44,7 +52,8 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 		if err = fields.optional("targetPeerId"); err != nil {
 			return err
 		}
-		if fields.has("text") || (fields.has("targetPeerId") && !ValidOpaqueID(value.TargetPeerID)) {
+		if fields.has("text") || fields.has("x") || fields.has("y") || fields.has("phase") ||
+			(fields.has("targetPeerId") && !ValidOpaqueID(value.TargetPeerID)) {
 			return errors.New("invalid reaction payload")
 		}
 		switch value.Reaction {
@@ -55,6 +64,20 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 		case "wave", "heart", "clap", "laugh", "wow", "party", "fire", "eyes", "star", "sleep":
 		default:
 			return errors.New("unknown reaction")
+		}
+	case "laser":
+		if err = fields.require("x", "y", "phase"); err != nil {
+			return err
+		}
+		if fields.has("text") || fields.has("reaction") || fields.has("targetPeerId") ||
+			value.X == nil || value.Y == nil ||
+			*value.X < 0 || *value.X > 1 || *value.Y < 0 || *value.Y > 1 {
+			return errors.New("invalid laser payload")
+		}
+		switch value.Phase {
+		case "down", "move", "up":
+		default:
+			return errors.New("unknown laser phase")
 		}
 	default:
 		return errors.New("unknown interaction kind")

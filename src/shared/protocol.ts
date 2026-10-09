@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_CHAT_CODE_POINTS, normalizeChatText, REACTION_IDS, isThrow } from "./room-interactions.js";
+import { LASER_PHASES, MAX_CHAT_CODE_POINTS, normalizeChatText, REACTION_IDS, isThrow } from "./room-interactions.js";
 
 import { MAX_ENDPOINT_MEDIA_COPY_CAPACITY } from "./media-copy-accounting.js";
 import { isCanonicalVideoCodecEvidence } from "./video-codec-evidence.js";
@@ -71,6 +71,10 @@ export const interactionPayloadSchema = z.discriminatedUnion("kind", [
     .refine(value => normalizeChatText(value) === value) }).strict(),
   z.object({ kind: z.literal("reaction"), reaction: z.enum(REACTION_IDS),
     targetPeerId: opaqueIdSchema.optional() }).strict(),
+  // Laser pointer coordinates are normalized to the shared picture, so every
+  // viewer maps them onto its own letterboxed video rectangle.
+  z.object({ kind: z.literal("laser"), x: z.number().min(0).max(1), y: z.number().min(0).max(1),
+    phase: z.enum(LASER_PHASES) }).strict(),
 ]).refine(payload => payload.kind !== "reaction" || !isThrow(payload.reaction) || !!payload.targetPeerId,
   { message: "Throwing a prop requires a participant" });
 export type InteractionPayload = z.infer<typeof interactionPayloadSchema>;

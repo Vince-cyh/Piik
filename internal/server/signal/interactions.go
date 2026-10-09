@@ -16,11 +16,21 @@ func (s *Server) handleRoomInteraction(sess *session, actor *authenticatedSessio
 		return
 	}
 	now := s.now()
-	if now < sess.nextInteractionAtMs {
-		reject("rate-limited")
-		return
+	// Pointer motion runs on its own faster clock so a busy laser never
+	// delays chat, and chat never stutters the pointer.
+	if message.Payload.Kind == "laser" {
+		if now < sess.nextLaserAtMs {
+			reject("rate-limited")
+			return
+		}
+		sess.nextLaserAtMs = now + protocol.LaserIntervalMs
+	} else {
+		if now < sess.nextInteractionAtMs {
+			reject("rate-limited")
+			return
+		}
+		sess.nextInteractionAtMs = now + protocol.InteractionIntervalMs
 	}
-	sess.nextInteractionAtMs = now + protocol.InteractionIntervalMs
 	if targetID := message.Payload.TargetPeerID; targetID != "" {
 		target, exists := s.connectedPeer(actor.roomID, targetID)
 		targetSession := s.sessionsByID[target.SessionID]

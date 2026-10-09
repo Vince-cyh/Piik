@@ -31,6 +31,7 @@ import { HostMicrophone, HostMicrophoneSettings } from "../components/living/Hos
 import { LiveAudioExclusion } from "../components/living/AudioExclusionSelect";
 import { RoomInteractions } from "../components/living/RoomInteractions";
 import { RoomChatOverlay } from "../components/living/RoomChatOverlay";
+import { RoomLaser } from "../components/living/RoomLaser";
 import type { RoomInteractionSession } from "../lib/room-interactions";
 import { HostAudio } from "../media/host-audio";
 import {
@@ -3586,6 +3587,8 @@ export function HostPage({
             {stream ? (
               <video ref={videoRef} autoPlay muted playsInline />
             ) : null}
+            <RoomLaser session={room ? interactionSession : null} videoRef={videoRef}
+              active={phase === "live" && !nativeSources && !sharingPaused && !(switchingSource && !sourceSwitchRef.current?.audioOnly) && !localPreviewPaused} />
             <RoomChatOverlay session={room ? interactionSession : null}
               visible={phase === "live" && !nativeSources && !sharingPaused && !(switchingSource && !sourceSwitchRef.current?.audioOnly) && !localPreviewPaused} />
             {nativeSources ? (

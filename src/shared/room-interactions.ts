@@ -1,6 +1,10 @@
 // Room data is transient and bounded. It never describes a media route.
 export const MAX_CHAT_CODE_POINTS = 280;
 export const INTERACTION_INTERVAL_MS = 800;
+export const LASER_INTERVAL_MS = 60;
+export const LASER_TRAIL_MS = 1500;
+export const LASER_PHASES = ["down", "move", "up"] as const;
+export type LaserPhase = typeof LASER_PHASES[number];
 export const REACTION_DURATION_MS = 2400;
 export const REACTION_IDS = ["wave", "heart", "clap", "laugh", "wow", "party", "fire", "eyes", "star", "sleep", "tomato", "poop"] as const;
 export type ReactionId = typeof REACTION_IDS[number];

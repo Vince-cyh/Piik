@@ -109,6 +109,33 @@ test("history and animations are bounded, deduplicated and retired with the room
   expect(vi.getTimerCount()).toBe(0);
 });
 
+test("laser points bypass chat cooldown, track each sender and clear on lift and disconnect", () => {
+  const { session } = setup();
+  expect(session.sendLaser(0.5, 0.5, "move")).toBe(false);
+  session.receive({ type: "room-interactions-ready", serverTime: Date.now() });
+  expect(session.sendLaser(0.5, 0.5, "move")).toBe(true);
+  expect(session.sendLaser(0.5, 0.5, "move")).toBe(true);
+  expect(session.sendLaser(2, 0.5, "move")).toBe(false);
+  expect(session.sendLaser(NaN, 0.5, "move")).toBe(false);
+  expect(session.getSnapshot().pending).toBeNull();
+  expect(session.send({ kind: "chat", text: "Hi" })).toBe(true);
+  expect(session.getSnapshot().pending).not.toBeNull();
+  const laser = (id: string, phase: "down" | "move" | "up", x = .2, y = .3): RoomInteraction => ({
+    ...message(id), payload: { kind: "laser", x, y, phase } });
+  session.receive(laser("laser_1234_a", "move"));
+  expect(session.getSnapshot().lasers["other_peer_1234"]).toMatchObject({ x: .2, y: .3, displayName: "朋友" });
+  session.receive(laser("laser_1234_b", "move", .4, .5));
+  expect(session.getSnapshot().lasers["other_peer_1234"]).toMatchObject({ x: .4, y: .5, id: "laser_1234_b" });
+  session.receive({ ...laser("laser_1234_c", "move", .9, .9),
+    sender: { peerId: "self_peer_1234", role: "host" as const, displayName: "我" } });
+  expect(session.getSnapshot().lasers["self_peer_1234"]).toBeUndefined();
+  session.receive(laser("laser_1234_d", "up", 0, 0));
+  expect(session.getSnapshot().lasers["other_peer_1234"]).toBeUndefined();
+  session.disconnected();
+  expect(session.getSnapshot().lasers).toEqual({});
+  session.close();
+});
+
 test("rejection and timeout leave delivery unconfirmed without automatic retries", () => {
   const { session, send } = setup();
   session.receive({ type: "room-interactions-ready", serverTime: Date.now() });

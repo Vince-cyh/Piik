@@ -156,6 +156,8 @@ export const en: Record<CopyKey, string> = {
   "interaction.overlay.hide": "Hide chat on screen",
   "interaction.overlay.showHint": "Show new messages over the picture, just for you.",
   "interaction.overlay.hideHint": "Hide on-screen messages. They remain in the chat window.",
+  "interaction.laser.show": "Turn on laser pointer",
+  "interaction.laser.hide": "Turn off laser pointer",
   "interaction.effects": "Show reaction effects",
   "interaction.ephemeral": "Messages stay on this page and clear when you refresh.",
   "interaction.empty": "Make yourself at home. Say hello.",

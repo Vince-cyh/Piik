@@ -50,6 +50,7 @@ const PATHS = {
   wifiOff: { body: (<><path pathLength={1} d="m2 2 20 20"/><path pathLength={1} d="M8.5 16.5a5 5 0 0 1 7 0"/><path pathLength={1} d="M5 12.9a11 11 0 0 1 3.1-2.2M15.9 11.4a11 11 0 0 1 3.1 1.5"/><path pathLength={1} d="M1.5 8.8A16 16 0 0 1 8 5.4m8 .2a16 16 0 0 1 6.5 3.2"/><path pathLength={1} d="M12 20h.01"/></>) },
   moon: { body: (<><path pathLength={1} d="M20.2 14.2A8.5 8.5 0 1 1 9.8 3.8a7 7 0 1 0 10.4 10.4Z"/></>) },
   pencil: { body: (<><path pathLength={1} d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></>) },
+  laser: { body: (<><circle pathLength={1} cx="12" cy="12" r="3"/><path pathLength={1} d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></>) },
   link: { body: (<><path pathLength={1} d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path pathLength={1} d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>) },
   linkOff: { body: (<><path pathLength={1} d="M10 13a5 5 0 0 0 7.54.54l1.1-1.1M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><path pathLength={1} d="m3 3 18 18"/></>) },
   arrowRight: { body: (<><path pathLength={1} d="M4 12h16m-6.5-6.5L20 12l-6.5 6.5"/></>) },

@@ -156,6 +156,8 @@ export const zh = {
   "interaction.overlay.hide": "隐藏弹幕",
   "interaction.overlay.showHint": "在画面上显示新消息，仅对自己生效。",
   "interaction.overlay.hideHint": "隐藏画面上的消息，聊天窗口仍可查看。",
+  "interaction.laser.show": "开启激光笔",
+  "interaction.laser.hide": "关闭激光笔",
   "interaction.effects": "显示互动动效",
   "interaction.ephemeral": "仅保留本页收到的消息，刷新后清空。",
   "interaction.empty": "坐这儿，聊两句。",

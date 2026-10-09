@@ -37,7 +37,8 @@
       "natPrediction": false
     },
     "maxChatCodePoints": 280,
-    "interactionIntervalMs": 800
+    "interactionIntervalMs": 800,
+    "laserIntervalMs": 60
   },
   "clientMessages": [
     {
@@ -1047,6 +1048,54 @@
       "schema": "client",
       "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"reaction\",\"reaction\":\"wave\"}}",
       "valid": true
+    },
+    {
+      "name": "room-laser",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"y\":0.75,\"phase\":\"move\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-laser-edge-origin",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0,\"y\":1,\"phase\":\"down\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-laser-lifted",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0.5,\"y\":0.5,\"phase\":\"up\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-laser-invalid-range",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":1.5,\"y\":0.75,\"phase\":\"move\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-laser-invalid-phase",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"y\":0.75,\"phase\":\"blink\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-laser-invalid-missing-coordinate",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"phase\":\"move\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-laser-invalid-text",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"y\":0.75,\"phase\":\"move\",\"text\":\"hello\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-laser-invalid-null-coordinate",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":null,\"y\":0.75,\"phase\":\"move\"}}",
+      "valid": false
     }
   ],
   "serverMessages": [
@@ -1193,6 +1242,10 @@
     {
       "name": "room-interaction",
       "json": "{\"type\":\"room-interaction\",\"id\":\"event_12345678\",\"requestId\":\"request_12345678\",\"occurredAt\":1700000000010,\"sender\":{\"peerId\":\"peer_12345678\",\"role\":\"host\",\"displayName\":\"Piik friend\"},\"payload\":{\"kind\":\"chat\",\"text\":\"来，看点好康的。 <b>Hello</b> 👋\"}}"
+    },
+    {
+      "name": "room-interaction-laser",
+      "json": "{\"type\":\"room-interaction\",\"id\":\"event_87654321\",\"requestId\":\"request_87654321\",\"occurredAt\":1700000000020,\"sender\":{\"peerId\":\"peer_87654321\",\"role\":\"viewer\",\"displayName\":\"小明\"},\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"y\":0.75,\"phase\":\"move\"}}"
     }
   ]
 }

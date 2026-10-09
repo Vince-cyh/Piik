@@ -1,5 +1,5 @@
 import { interactionPayloadSchema, type ClientMessage, type ServerMessage, type InteractionPayload } from "../../shared/protocol";
-import { INTERACTION_INTERVAL_MS, REACTION_DURATION_MS } from "../../shared/room-interactions";
+import { INTERACTION_INTERVAL_MS, REACTION_DURATION_MS, type LaserPhase } from "../../shared/room-interactions";
 import { createOpaqueId } from "./opaque-id";
 import { identityHash } from "./identity-hash";
 
@@ -11,11 +11,14 @@ export const CHAT_HISTORY_LIMIT = 1000;
 export const CHAT_OVERLAY_LIMITS = { scale: [.8, 1.3], opacity: [.4, 1] } as const;
 type OverlayAppearance = { scale: number; opacity: number };
 const CHAT_OVERLAY_LANES = 3;
+// Latest pointer position per remote participant; the overlay keeps the trail.
+export interface LaserPoint { id: string; x: number; y: number; displayName: string; at: number }
 interface InteractionState {
   ready: boolean;
   peerId: string | null;
   messages: (RoomInteraction & { isSelf: boolean })[];
   reactions: (RoomInteraction & { expiresAt: number })[];
+  lasers: Record<string, LaserPoint>;
   overlayEnabled: boolean;
   overlayAppearance: OverlayAppearance;
   overlayMessages: (RoomInteraction & { expiresAt: number; lane: number })[];
@@ -24,7 +27,7 @@ interface InteractionState {
   coolingDown: boolean;
   error: InteractionError | null;
 }
-const initialState = (): InteractionState => ({ ready: false, peerId: null, messages: [], reactions: [],
+const initialState = (): InteractionState => ({ ready: false, peerId: null, messages: [], reactions: [], lasers: {},
   overlayEnabled: false, overlayAppearance: { scale: 1, opacity: 1 }, overlayMessages: [],
   pending: null, confirmed: null, coolingDown: false, error: null });
 
@@ -90,6 +93,16 @@ export class RoomInteractionSession {
     const confirmed = confirmsPending ? message : this.state.confirmed;
     const pending = confirmsPending ? null : this.state.pending;
     if (!pending) clearTimeout(this.pendingTimer);
+    if (message.payload.kind === "laser") {
+      // Own echoes would double the local pointer; the sender draws itself.
+      if (own) return true;
+      const lasers = { ...this.state.lasers };
+      if (message.payload.phase === "up") delete lasers[message.sender.peerId];
+      else lasers[message.sender.peerId] = { id: message.id, x: message.payload.x, y: message.payload.y,
+        displayName: message.sender.displayName, at: now };
+      this.update({ lasers });
+      return true;
+    }
     if (message.payload.kind === "chat") {
       if (this.state.messages.some(item => item.id === message.id)) return true;
       let overlayMessages = this.state.overlayMessages.filter(item => item.expiresAt > now);
@@ -132,6 +145,19 @@ export class RoomInteractionSession {
     return true;
   }
 
+  // Pointer motion is fire-and-forget: it bypasses the chat cooldown and the
+  // single pending echo. The server paces it with its own faster laser limit.
+  sendLaser(x: number, y: number, phase: LaserPhase): boolean {
+    if (this.closed || !this.state.ready) return false;
+    const payload: InteractionPayload = { kind: "laser", x, y, phase };
+    if (!interactionPayloadSchema.safeParse(payload).success) return false;
+    try {
+      return this.sendMessage({ type: "send-room-interaction", requestId: createOpaqueId(), payload });
+    } catch {
+      return false;
+    }
+  }
+
   setOverlayEnabled(enabled: boolean) {
     if (this.closed || this.state.overlayEnabled === enabled) return;
     this.update({ overlayEnabled: enabled, overlayMessages: [] });
@@ -170,7 +196,7 @@ export class RoomInteractionSession {
     clearTimeout(this.pendingTimer);
     clearTimeout(this.cooldownTimer);
     clearTimeout(this.effectsTimer);
-    this.update({ ready: false, reactions: [], overlayMessages: [], coolingDown: false, pending: null, confirmed: null,
+    this.update({ ready: false, reactions: [], lasers: {}, overlayMessages: [], coolingDown: false, pending: null, confirmed: null,
       error: this.state.pending ? "unconfirmed" : this.state.error });
   }
   close() {
