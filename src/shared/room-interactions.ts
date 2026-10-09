@@ -23,6 +23,9 @@ export const PAINT_COLORS = [
 // independent boards; every paint op declares which one it belongs to.
 export const PAINT_SPACES = ["stage", "panel"] as const;
 export type PaintSpace = typeof PAINT_SPACES[number];
+// Panel strokes normalize to this fixed world, not to the window: resizing
+// the window only reveals or hides world area, never distorts the drawing.
+export const PANEL_WORLD = { width: 2400, height: 1600 } as const;
 export const REACTION_DURATION_MS = 2400;
 export const REACTION_IDS = ["wave", "heart", "clap", "laugh", "wow", "party", "fire", "eyes", "star", "sleep", "tomato", "poop"] as const;
 export type ReactionId = typeof REACTION_IDS[number];

@@ -21,3 +21,8 @@
 }
 .lr-paint-palette-grid .lr-paint-swatch { width: 22px; height: 22px; }
 .lr-paint-panel-tools { display: flex; align-items: center; gap: 8px; padding: 8px 0 0; }
+.lr-paint-panel-canvas {
+  flex: 1; min-height: 0; position: relative; margin: 10px 12px 12px;
+  border-radius: 10px; background: #14181f; overflow: hidden;
+}
+.lr-paint-panel-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }

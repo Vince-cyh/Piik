@@ -33,6 +33,7 @@ import { RoomInteractions } from "../components/living/RoomInteractions";
 import { RoomChatOverlay } from "../components/living/RoomChatOverlay";
 import { RoomLaser } from "../components/living/RoomLaser";
 import { RoomPaint } from "../components/living/RoomPaint";
+import { RoomPaintPanel } from "../components/living/RoomPaintPanel";
 import type { RoomInteractionSession } from "../lib/room-interactions";
 import { HostAudio } from "../media/host-audio";
 import {
@@ -4108,6 +4109,7 @@ export function HostPage({
             </>}
           />
           <RoomInteractions session={room ? interactionSession : null}
+            extraAction={<RoomPaintPanel session={room ? interactionSession : null} isHost />}
             view="host"
             host={{
               key: hostIdentity,

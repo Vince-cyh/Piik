@@ -28,6 +28,7 @@ import { RoomInteractions } from "../components/living/RoomInteractions";
 import { RoomChatOverlay, RoomChatToggle } from "../components/living/RoomChatOverlay";
 import { RoomLaser } from "../components/living/RoomLaser";
 import { RoomPaint } from "../components/living/RoomPaint";
+import { RoomPaintPanel } from "../components/living/RoomPaintPanel";
 import type { RoomInteractionSession } from "../lib/room-interactions";
 import { getRuntimeCapabilities } from "../lib/api";
 import { participantColor } from "../components/living/participant-color";
@@ -2297,6 +2298,7 @@ export function ViewerPage({
             )}
           </div>
           <RoomInteractions session={interactionSession}
+            extraAction={<RoomPaintPanel session={interactionSession} isHost={false} />}
             view="viewer"
             host={
               labeledHostPresence

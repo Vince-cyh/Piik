@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { normalizeChatText, MAX_CHAT_CODE_POINTS, REACTION_IDS, isThrow } from "../../../shared/room-interactions";
 import { RoomInteractionSession } from "../../lib/room-interactions";
 import { useCopy } from "../../ui/copy";
@@ -14,7 +14,7 @@ import { RoomChatSettings } from "./RoomChatSettings";
 import "./room-interactions.css";
 
 interface Participant { peerId: string; displayName: string }
-type Props = CouchProps & { session: RoomInteractionSession | null };
+type Props = CouchProps & { session: RoomInteractionSession | null; extraAction?: ReactNode };
 
 export function RoomInteractions(props: Props) {
   return props.session ? <ConnectedRoomInteractions key={props.session.key} {...props} session={props.session} /> : <Couch {...props} />;
@@ -26,7 +26,7 @@ function ConnectedRoomInteractions(props: ConnectedProps) {
   return <InteractionPanel {...props} state={state} />;
 }
 
-function InteractionPanel({ session, state, ...couch }: ConnectedProps & {
+function InteractionPanel({ session, state, extraAction, ...couch }: ConnectedProps & {
   state: ReturnType<RoomInteractionSession["getSnapshot"]>;
 }) {
   const { t, vis } = useCopy();
@@ -179,6 +179,7 @@ function InteractionPanel({ session, state, ...couch }: ConnectedProps & {
             hint={chatOpen ? "hint-close" : "hint-chat-open"}
             tone={chatOpen ? "on" : undefined} popoverTarget={id} />
           {unread > 0 && <span className="lr-interaction-unread" aria-label={t("interaction.unread", { count: String(unread) })}>{unread}</span>}
+          {extraAction}
         </span>} />
       {effects && state.reactions.map((reaction, index) => {
         const payload = reaction.payload;
