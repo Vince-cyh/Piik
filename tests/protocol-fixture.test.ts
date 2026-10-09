@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-import { INTERACTION_INTERVAL_MS, LASER_INTERVAL_MS, MAX_CHAT_CODE_POINTS } from "../src/shared/room-interactions";
+import { INTERACTION_INTERVAL_MS, LASER_INTERVAL_MS, MAX_CHAT_CODE_POINTS, PAINT_APPEND_POINT_LIMIT, PAINT_COLORS, PAINT_SNAPSHOT_POINT_LIMIT, PAINT_SNAPSHOT_STROKE_LIMIT, PAINT_STROKE_POINT_LIMIT } from "../src/shared/room-interactions";
 
 import {
   DEFAULT_ENDPOINT_MEDIA_COPY_CAPACITY,
@@ -87,6 +87,11 @@ describe("shared wire fixture", () => {
       maxChatCodePoints: MAX_CHAT_CODE_POINTS,
       interactionIntervalMs: INTERACTION_INTERVAL_MS,
       laserIntervalMs: LASER_INTERVAL_MS,
+      paintAppendPointLimit: PAINT_APPEND_POINT_LIMIT,
+      paintStrokePointLimit: PAINT_STROKE_POINT_LIMIT,
+      paintSnapshotStrokeLimit: PAINT_SNAPSHOT_STROKE_LIMIT,
+      paintSnapshotPointLimit: PAINT_SNAPSHOT_POINT_LIMIT,
+      paintColorCount: PAINT_COLORS.length,
       defaultViewerDisplayName: DEFAULT_VIEWER_DISPLAY_NAME,
       defaultHostDisplayNamePrefix: DEFAULT_HOST_DISPLAY_NAME_PREFIX,
       minViewerPasswordLength: MIN_VIEWER_PASSWORD_LENGTH,

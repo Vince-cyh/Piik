@@ -15,14 +15,39 @@ const InteractionIntervalMs = 800
 // at chat speed would visibly stutter, while chat must stay calm.
 const LaserIntervalMs = 60
 
+// The shared board relays stroke ops on the same fast lane as the laser.
+// Snapshot limits keep one message under MaxSignalBytes.
+const PaintAppendPointLimit = 64
+const PaintStrokePointLimit = 2000
+const PaintSnapshotStrokeLimit = 200
+const PaintSnapshotPointLimit = 8000
+const PaintColorCount = 12
+
+// PaintPoint is a normalized [x, y] pair within the shared picture.
+type PaintPoint [2]float64
+
+type PaintStroke struct {
+	ID     string       `json:"id"`
+	By     string       `json:"by"`
+	Color  *int         `json:"color,omitempty"`
+	Points []PaintPoint `json:"points"`
+}
+
 type InteractionPayload struct {
-	Kind         string   `json:"kind"`
-	Text         string   `json:"text,omitempty"`
-	Reaction     string   `json:"reaction,omitempty"`
-	TargetPeerID string   `json:"targetPeerId,omitempty"`
-	X            *float64 `json:"x,omitempty"`
-	Y            *float64 `json:"y,omitempty"`
-	Phase        string   `json:"phase,omitempty"`
+	Kind         string        `json:"kind"`
+	Text         string        `json:"text,omitempty"`
+	Reaction     string        `json:"reaction,omitempty"`
+	TargetPeerID string        `json:"targetPeerId,omitempty"`
+	X            *float64      `json:"x,omitempty"`
+	Y            *float64      `json:"y,omitempty"`
+	Phase        string        `json:"phase,omitempty"`
+	Op           string        `json:"op,omitempty"`
+	Space        string        `json:"space,omitempty"`
+	StrokeID     string        `json:"strokeId,omitempty"`
+	Point        *PaintPoint   `json:"point,omitempty"`
+	Color        *int          `json:"color,omitempty"`
+	Points       []PaintPoint  `json:"points,omitempty"`
+	Strokes      []PaintStroke `json:"strokes,omitempty"`
 }
 
 func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
@@ -35,13 +60,17 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 	if err = fields.require("kind"); err != nil {
 		return err
 	}
+	forbidsPaint := func() bool {
+		return fields.has("op") || fields.has("space") || fields.has("strokeId") || fields.has("point") ||
+			fields.has("points") || fields.has("strokes") || fields.has("color")
+	}
 	switch value.Kind {
 	case "chat":
 		if err = fields.require("text"); err != nil {
 			return err
 		}
 		if fields.has("reaction") || fields.has("targetPeerId") ||
-			fields.has("x") || fields.has("y") || fields.has("phase") ||
+			fields.has("x") || fields.has("y") || fields.has("phase") || forbidsPaint() ||
 			hasUnpairedSurrogateEscape(fields["text"]) || !validChatText(value.Text) {
 			return errors.New("invalid chat payload")
 		}
@@ -53,7 +82,7 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if fields.has("text") || fields.has("x") || fields.has("y") || fields.has("phase") ||
-			(fields.has("targetPeerId") && !ValidOpaqueID(value.TargetPeerID)) {
+			forbidsPaint() || (fields.has("targetPeerId") && !ValidOpaqueID(value.TargetPeerID)) {
 			return errors.New("invalid reaction payload")
 		}
 		switch value.Reaction {
@@ -69,7 +98,7 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 		if err = fields.require("x", "y", "phase"); err != nil {
 			return err
 		}
-		if fields.has("text") || fields.has("reaction") || fields.has("targetPeerId") ||
+		if fields.has("text") || fields.has("reaction") || fields.has("targetPeerId") || forbidsPaint() ||
 			value.X == nil || value.Y == nil ||
 			*value.X < 0 || *value.X > 1 || *value.Y < 0 || *value.Y > 1 {
 			return errors.New("invalid laser payload")
@@ -79,11 +108,102 @@ func (payload *InteractionPayload) UnmarshalJSON(data []byte) error {
 		default:
 			return errors.New("unknown laser phase")
 		}
+	case "paint":
+		if fields.has("text") || fields.has("reaction") || fields.has("targetPeerId") ||
+			fields.has("x") || fields.has("y") || fields.has("phase") {
+			return errors.New("invalid paint payload")
+		}
+		if err = validatePaintPayload(fields, (*InteractionPayload)(&value)); err != nil {
+			return err
+		}
 	default:
 		return errors.New("unknown interaction kind")
 	}
 	*payload = InteractionPayload(value)
 	return nil
+}
+
+func validatePaintPayload(fields fields, value *InteractionPayload) error {
+	if err := fields.require("space"); err != nil {
+		return err
+	}
+	if value.Space != "stage" && value.Space != "panel" {
+		return errors.New("unknown paint space")
+	}
+	strokeID, hasStrokeID := value.StrokeID, fields.has("strokeId")
+	if hasStrokeID && !ValidOpaqueID(strokeID) {
+		return errors.New("invalid paint strokeId")
+	}
+	if value.Color != nil && (*value.Color < 0 || *value.Color >= PaintColorCount) {
+		return errors.New("invalid paint color")
+	}
+	switch value.Op {
+	case "begin":
+		if err := fields.require("strokeId", "point"); err != nil {
+			return err
+		}
+		if fields.has("points") || fields.has("strokes") || !validPaintPoint(value.Point) {
+			return errors.New("invalid paint begin payload")
+		}
+	case "append":
+		if err := fields.require("strokeId", "points"); err != nil {
+			return err
+		}
+		if fields.has("point") || fields.has("strokes") || fields.has("color") ||
+			len(value.Points) < 1 || len(value.Points) > PaintAppendPointLimit {
+			return errors.New("invalid paint append payload")
+		}
+		for _, point := range value.Points {
+			if !validPaintPoint(&point) {
+				return errors.New("invalid paint point")
+			}
+		}
+	case "end", "undo":
+		if err := fields.require("strokeId"); err != nil {
+			return err
+		}
+		if fields.has("point") || fields.has("points") || fields.has("strokes") || fields.has("color") {
+			return errors.New("invalid paint payload")
+		}
+	case "clear", "sync-request":
+		if hasStrokeID || fields.has("point") || fields.has("points") || fields.has("strokes") || fields.has("color") {
+			return errors.New("invalid paint payload")
+		}
+	case "snapshot":
+		if err := fields.require("strokes"); err != nil {
+			return err
+		}
+		if hasStrokeID || fields.has("point") || fields.has("points") || fields.has("color") ||
+			len(value.Strokes) < 1 || len(value.Strokes) > PaintSnapshotStrokeLimit {
+			return errors.New("invalid paint snapshot payload")
+		}
+		total := 0
+		for _, stroke := range value.Strokes {
+			if !ValidOpaqueID(stroke.ID) || !ValidOpaqueID(stroke.By) ||
+				len(stroke.Points) < 1 || len(stroke.Points) > PaintStrokePointLimit {
+				return errors.New("invalid paint snapshot stroke")
+			}
+			if stroke.Color != nil && (*stroke.Color < 0 || *stroke.Color >= PaintColorCount) {
+				return errors.New("invalid paint stroke color")
+			}
+			total += len(stroke.Points)
+			if total > PaintSnapshotPointLimit {
+				return errors.New("paint snapshot exceeds point limit")
+			}
+			for _, point := range stroke.Points {
+				if !validPaintPoint(&point) {
+					return errors.New("invalid paint point")
+				}
+			}
+		}
+	default:
+		return errors.New("unknown paint op")
+	}
+	return nil
+}
+
+func validPaintPoint(point *PaintPoint) bool {
+	return point != nil && point[0] >= 0 && point[0] <= 1 && point[1] >= 0 && point[1] <= 1
 }
 
 func validChatText(value string) bool {

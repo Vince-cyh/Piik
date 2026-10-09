@@ -16,9 +16,9 @@ func (s *Server) handleRoomInteraction(sess *session, actor *authenticatedSessio
 		return
 	}
 	now := s.now()
-	// Pointer motion runs on its own faster clock so a busy laser never
-	// delays chat, and chat never stutters the pointer.
-	if message.Payload.Kind == "laser" {
+	// Pointer motion and board strokes run on their own faster clock so a
+	// busy laser or painter never delays chat, and chat never stutters them.
+	if message.Payload.Kind == "laser" || message.Payload.Kind == "paint" {
 		if now < sess.nextLaserAtMs {
 			reject("rate-limited")
 			return

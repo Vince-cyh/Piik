@@ -38,7 +38,12 @@
     },
     "maxChatCodePoints": 280,
     "interactionIntervalMs": 800,
-    "laserIntervalMs": 60
+    "laserIntervalMs": 60,
+    "paintAppendPointLimit": 64,
+    "paintStrokePointLimit": 2000,
+    "paintSnapshotStrokeLimit": 200,
+    "paintSnapshotPointLimit": 8000,
+    "paintColorCount": 12
   },
   "clientMessages": [
     {
@@ -1096,6 +1101,108 @@
       "schema": "client",
       "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"laser\",\"x\":null,\"y\":0.75,\"phase\":\"move\"}}",
       "valid": false
+    },
+    {
+      "name": "room-paint-begin",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"point\":[0.25,0.75]}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-append",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"append\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"points\":[[0.1,0.2],[0.3,0.4]]}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-end",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"end\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-undo",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"undo\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-clear",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"clear\",\"space\":\"stage\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-sync-request",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"sync-request\",\"space\":\"stage\"}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-snapshot",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"snapshot\",\"space\":\"stage\",\"strokes\":[{\"id\":\"stroke_123456789\",\"by\":\"peer_12345678\",\"points\":[[0.1,0.2],[0.3,0.4]]}]}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-invalid-op",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"splash\",\"space\":\"stage\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-begin-without-point",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\"}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-append-empty",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"append\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"points\":[]}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-point-range",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"point\":[1.5,0.5]}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-laser-field",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"clear\",\"space\":\"stage\",\"x\":0.5}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-snapshot-stroke-owner",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"snapshot\",\"space\":\"stage\",\"strokes\":[{\"id\":\"stroke_123456789\",\"by\":\"bad id\",\"points\":[[0.1,0.2]]}]}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-begin-colored",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"point\":[0.25,0.75],\"color\":3}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-snapshot-colored",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"snapshot\",\"space\":\"stage\",\"strokes\":[{\"id\":\"stroke_123456789\",\"by\":\"peer_12345678\",\"color\":0,\"points\":[[0.1,0.2],[0.3,0.4]]}]}}",
+      "valid": true
+    },
+    {
+      "name": "room-paint-invalid-color-range",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"point\":[0.25,0.75],\"color\":12}}",
+      "valid": false
+    },
+    {
+      "name": "room-paint-invalid-append-color",
+      "schema": "client",
+      "json": "{\"type\":\"send-room-interaction\",\"requestId\":\"request_12345678\",\"payload\":{\"kind\":\"paint\",\"op\":\"append\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"points\":[[0.1,0.2]],\"color\":1}}",
+      "valid": false
     }
   ],
   "serverMessages": [
@@ -1246,6 +1353,14 @@
     {
       "name": "room-interaction-laser",
       "json": "{\"type\":\"room-interaction\",\"id\":\"event_87654321\",\"requestId\":\"request_87654321\",\"occurredAt\":1700000000020,\"sender\":{\"peerId\":\"peer_87654321\",\"role\":\"viewer\",\"displayName\":\"小明\"},\"payload\":{\"kind\":\"laser\",\"x\":0.25,\"y\":0.75,\"phase\":\"move\"}}"
+    },
+    {
+      "name": "room-interaction-paint",
+      "json": "{\"type\":\"room-interaction\",\"id\":\"event_11111111\",\"requestId\":\"request_11111111\",\"occurredAt\":1700000000030,\"sender\":{\"peerId\":\"peer_12345678\",\"role\":\"host\",\"displayName\":\"Piik friend\"},\"payload\":{\"kind\":\"paint\",\"op\":\"begin\",\"space\":\"stage\",\"strokeId\":\"stroke_123456789\",\"point\":[0.25,0.75]}}"
+    },
+    {
+      "name": "room-interaction-paint-snapshot",
+      "json": "{\"type\":\"room-interaction\",\"id\":\"event_22222222\",\"requestId\":\"request_22222222\",\"occurredAt\":1700000000040,\"sender\":{\"peerId\":\"peer_12345678\",\"role\":\"host\",\"displayName\":\"Piik friend\"},\"payload\":{\"kind\":\"paint\",\"op\":\"snapshot\",\"space\":\"stage\",\"strokes\":[{\"id\":\"stroke_123456789\",\"by\":\"peer_12345678\",\"points\":[[0.1,0.2],[0.3,0.4]]}]}}"
     }
   ]
 }

@@ -1,5 +1,5 @@
-import { interactionPayloadSchema, type ClientMessage, type ServerMessage, type InteractionPayload } from "../../shared/protocol";
-import { INTERACTION_INTERVAL_MS, REACTION_DURATION_MS, type LaserPhase } from "../../shared/room-interactions";
+import { interactionPayloadSchema, type ClientMessage, type ServerMessage, type InteractionPayload, type PaintStrokeWire } from "../../shared/protocol";
+import { INTERACTION_INTERVAL_MS, REACTION_DURATION_MS, type LaserPhase, type PaintOp, type PaintSpace } from "../../shared/room-interactions";
 import { createOpaqueId } from "./opaque-id";
 import { identityHash } from "./identity-hash";
 
@@ -13,12 +13,22 @@ type OverlayAppearance = { scale: number; opacity: number };
 const CHAT_OVERLAY_LANES = 3;
 // Latest pointer position per remote participant; the overlay keeps the trail.
 export interface LaserPoint { id: string; x: number; y: number; displayName: string; at: number }
+export type PaintStroke = PaintStrokeWire;
+// Each space (stage overlay / floating board) is an independent op log;
+// version bumps on every mutation so canvases can cheaply detect changes.
+export interface PaintBoard { order: string[]; strokes: Record<string, PaintStroke>; version: number }
+const emptyBoard = (): PaintBoard => ({ order: [], strokes: {}, version: 0 });
+const emptyBoards = (): Record<PaintSpace, PaintBoard> => ({ stage: emptyBoard(), panel: emptyBoard() });
+export interface PaintPayload { op: PaintOp; space: PaintSpace; strokeId?: string; point?: [number, number];
+  color?: number; points?: [number, number][]; strokes?: PaintStroke[] }
 interface InteractionState {
   ready: boolean;
   peerId: string | null;
   messages: (RoomInteraction & { isSelf: boolean })[];
   reactions: (RoomInteraction & { expiresAt: number })[];
   lasers: Record<string, LaserPoint>;
+  paint: Record<PaintSpace, PaintBoard>;
+  paintSyncTick: Record<PaintSpace, number>;
   overlayEnabled: boolean;
   overlayAppearance: OverlayAppearance;
   overlayMessages: (RoomInteraction & { expiresAt: number; lane: number })[];
@@ -28,6 +38,7 @@ interface InteractionState {
   error: InteractionError | null;
 }
 const initialState = (): InteractionState => ({ ready: false, peerId: null, messages: [], reactions: [], lasers: {},
+  paint: emptyBoards(), paintSyncTick: { stage: 0, panel: 0 },
   overlayEnabled: false, overlayAppearance: { scale: 1, opacity: 1 }, overlayMessages: [],
   pending: null, confirmed: null, coolingDown: false, error: null });
 
@@ -103,6 +114,12 @@ export class RoomInteractionSession {
       this.update({ lasers });
       return true;
     }
+    if (message.payload.kind === "paint") {
+      // Own echoes are the board's confirmation path: the sender renders its
+      // in-flight stroke locally and the echo folds it into the shared log.
+      this.applyPaint(message.payload, message.sender.peerId);
+      return true;
+    }
     if (message.payload.kind === "chat") {
       if (this.state.messages.some(item => item.id === message.id)) return true;
       let overlayMessages = this.state.overlayMessages.filter(item => item.expiresAt > now);
@@ -158,6 +175,66 @@ export class RoomInteractionSession {
     }
   }
 
+  // Board strokes share the laser's fire-and-forget lane: the server paces
+  // them with the same fast interval.
+  sendPaint(payload: PaintPayload): boolean {
+    if (this.closed || !this.state.ready) return false;
+    const message: InteractionPayload = { kind: "paint", ...payload };
+    if (!interactionPayloadSchema.safeParse(message).success) return false;
+    try {
+      return this.sendMessage({ type: "send-room-interaction", requestId: createOpaqueId(), payload: message });
+    } catch {
+      return false;
+    }
+  }
+
+  private applyPaint(payload: Extract<InteractionPayload, { kind: "paint" }>, senderPeerId: string) {
+    const space = payload.space;
+    const board = this.state.paint[space];
+    const strokes = { ...board.strokes };
+    let order = board.order;
+    const put = (next: PaintBoard) => this.update({ paint: { ...this.state.paint, [space]: next } });
+    switch (payload.op) {
+      case "begin":
+        if (!payload.strokeId || !payload.point || strokes[payload.strokeId]) return;
+        strokes[payload.strokeId] = { id: payload.strokeId, by: senderPeerId,
+          ...(payload.color !== undefined ? { color: payload.color } : {}), points: [payload.point] };
+        order = [...order, payload.strokeId];
+        break;
+      case "append": {
+        const stroke = payload.strokeId ? strokes[payload.strokeId] : undefined;
+        if (!stroke || !payload.points || stroke.by !== senderPeerId) return;
+        strokes[stroke.id] = { ...stroke, points: [...stroke.points, ...payload.points] };
+        break;
+      }
+      case "end":
+        break;
+      case "undo": {
+        const stroke = payload.strokeId ? strokes[payload.strokeId] : undefined;
+        if (!stroke || stroke.by !== senderPeerId) return;
+        delete strokes[stroke.id];
+        order = order.filter(id => id !== stroke.id);
+        break;
+      }
+      case "clear":
+        put({ order: [], strokes: {}, version: board.version + 1 });
+        return;
+      case "sync-request":
+        // The host's overlay watches this tick and answers with a snapshot.
+        this.update({ paintSyncTick: { ...this.state.paintSyncTick, [space]: this.state.paintSyncTick[space] + 1 } });
+        return;
+      case "snapshot":
+        if (!payload.strokes) return;
+        put({ order: payload.strokes.map(stroke => stroke.id),
+          strokes: Object.fromEntries(payload.strokes.map(stroke => [stroke.id, stroke])),
+          version: board.version + 1 });
+        return;
+      default:
+        return;
+    }
+    put({ order, strokes, version: board.version + 1 });
+  }
+
   setOverlayEnabled(enabled: boolean) {
     if (this.closed || this.state.overlayEnabled === enabled) return;
     this.update({ overlayEnabled: enabled, overlayMessages: [] });
@@ -196,7 +273,8 @@ export class RoomInteractionSession {
     clearTimeout(this.pendingTimer);
     clearTimeout(this.cooldownTimer);
     clearTimeout(this.effectsTimer);
-    this.update({ ready: false, reactions: [], lasers: {}, overlayMessages: [], coolingDown: false, pending: null, confirmed: null,
+    this.update({ ready: false, reactions: [], lasers: {}, paint: emptyBoards(), paintSyncTick: { stage: 0, panel: 0 },
+      overlayMessages: [], coolingDown: false, pending: null, confirmed: null,
       error: this.state.pending ? "unconfirmed" : this.state.error });
   }
   close() {

@@ -1,0 +1,23 @@
+.lr-paint { position: absolute; inset: 0; pointer-events: none; }
+.lr-paint-capture { position: absolute; pointer-events: auto; cursor: crosshair; touch-action: none; }
+.lr-paint-canvas { position: absolute; pointer-events: none; }
+.lr-paint-tools { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 6px; pointer-events: auto; }
+.lr-paint-swatches { display: inline-flex; gap: 5px; align-items: center; }
+.lr-paint-swatch {
+  width: 20px; height: 20px; border-radius: 50%; padding: 0;
+  border: 2px solid rgb(255 255 255 / .25); cursor: pointer;
+}
+.lr-paint-swatch[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px rgb(0 0 0 / .4); }
+.lr-paint-palette { position: relative; display: inline-flex; align-items: center; }
+.lr-paint-current {
+  width: 14px; height: 14px; border-radius: 50%; margin-left: -8px;
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .4); pointer-events: none;
+}
+.lr-paint-palette-grid {
+  position: absolute; z-index: 4; top: calc(100% + 8px); left: 0;
+  display: grid; grid-template-columns: repeat(6, 22px); gap: 7px;
+  padding: 10px; border: 1px solid var(--control-edge, rgb(255 255 255 / .15));
+  border-radius: 14px; background: var(--paper, #20262f); box-shadow: 0 8px 24px rgb(0 0 0 / .35);
+}
+.lr-paint-palette-grid .lr-paint-swatch { width: 22px; height: 22px; }
+.lr-paint-panel-tools { display: flex; align-items: center; gap: 8px; padding: 8px 0 0; }

@@ -105,6 +105,45 @@ func TestRoomLaserPointerRunsOnItsOwnPace(t *testing.T) {
 	host.next("room-interaction")
 }
 
+func TestRoomPaintStrokesShareTheFastLane(t *testing.T) {
+	var now atomic.Int64
+	now.Store(100_000)
+	h := startHarness(t, harnessOptions{now: now.Load})
+	host, viewer := openClient(t, h), openClient(t, h)
+	authenticate(t, host, h.room, protocol.RoleHost, "host_paint_1234", -1, "", presenceOptions{displayName: "房主", viewerPresence: true})
+	authenticate(t, viewer, h.room, protocol.RoleViewer, "viewer_paint_1234", -1, "", presenceOptions{displayName: "小明", viewerPresence: true})
+	for _, client := range []*testClient{host, viewer} {
+		subscribeInteractions(t, client)
+	}
+	paint := func(requestID string, payload map[string]any) {
+		viewer.sendJSON(map[string]any{"type": "send-room-interaction", "requestId": requestID, "payload": payload})
+	}
+	paint("paint_request_1", map[string]any{"kind": "paint", "op": "begin", "space": "stage", "strokeId": "stroke_paint_1234", "point": []float64{0.25, 0.75}})
+	event := host.next("room-interaction")
+	if string(event.raw) != string(viewer.next("room-interaction").raw) {
+		t.Fatal("recipients received different paint events")
+	}
+	decoded, err := protocol.DecodeServerMessage(event.raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	received := decoded.(protocol.RoomInteractionMessage).Payload
+	if received.Op != "begin" || received.Space != "stage" || received.Point == nil || *received.Point != [2]float64{0.25, 0.75} {
+		t.Fatalf("paint payload lost in transit: %+v", received)
+	}
+	// Strokes share the laser's fast clock: an immediate follow-up is paced.
+	paint("paint_request_2", map[string]any{"kind": "paint", "op": "append", "space": "stage", "strokeId": "stroke_paint_1234", "points": [][]float64{{0.3, 0.8}}})
+	expectMatch(t, viewer.next("room-interaction-rejected").raw, `{"reason":"rate-limited"}`)
+	now.Add(protocol.LaserIntervalMs)
+	paint("paint_request_3", map[string]any{"kind": "paint", "op": "append", "space": "stage", "strokeId": "stroke_paint_1234", "points": [][]float64{{0.3, 0.8}}})
+	host.next("room-interaction")
+	// The whole board clears for everyone on one message.
+	now.Add(protocol.LaserIntervalMs)
+	paint("paint_request_4", map[string]any{"kind": "paint", "op": "clear", "space": "panel"})
+	host.next("room-interaction")
+	viewer.next("room-interaction")
+}
+
 func TestRoomInteractionRequiresAuthenticationAndSubscription(t *testing.T) {
 	h := startHarness(t, harnessOptions{})
 	guest := openClient(t, h)

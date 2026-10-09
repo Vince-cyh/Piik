@@ -136,6 +136,53 @@ test("laser points bypass chat cooldown, track each sender and clear on lift and
   session.close();
 });
 
+test("paint strokes build per-space op logs with ownership, undo, clear and snapshot", () => {
+  const { session } = setup();
+  expect(session.sendPaint({ op: "clear", space: "stage" })).toBe(false);
+  session.receive({ type: "room-interactions-ready", serverTime: Date.now() });
+  expect(session.sendPaint({ op: "begin", space: "stage", strokeId: "stroke_local_123", point: [0, 0] })).toBe(true);
+  expect(session.sendPaint({ op: "begin", space: "stage", strokeId: "stroke_local_123" })).toBe(false);
+  expect(session.sendPaint({ op: "splash" as never, space: "stage" })).toBe(false);
+  expect(session.getSnapshot().pending).toBeNull();
+  const paint = (id: string, payload: RoomInteraction["payload"], sender?: RoomInteraction["sender"]): RoomInteraction => ({
+    ...message(id), payload, ...(sender ? { sender } : {}) });
+  const other = { peerId: "other_peer_1234", role: "viewer" as const, displayName: "朋友" };
+  const self = { peerId: "self_peer_1234", role: "host" as const, displayName: "我" };
+  session.receive(paint("paint_1234_a", { kind: "paint", op: "begin", space: "stage", strokeId: "stroke_other_123", point: [0.1, 0.2], color: 2 }, other));
+  session.receive(paint("paint_1234_b", { kind: "paint", op: "append", space: "stage", strokeId: "stroke_other_123", points: [[0.3, 0.4]] }, other));
+  expect(session.getSnapshot().paint.stage.strokes["stroke_other_123"]).toMatchObject({ by: "other_peer_1234",
+    color: 2, points: [[0.1, 0.2], [0.3, 0.4]] });
+  // The two boards are independent: same stroke id in another space is its own stroke.
+  session.receive(paint("paint_1234_j", { kind: "paint", op: "begin", space: "panel", strokeId: "stroke_other_123", point: [0.9, 0.1] }, other));
+  expect(session.getSnapshot().paint.panel.strokes["stroke_other_123"]?.points).toEqual([[0.9, 0.1]]);
+  expect(session.getSnapshot().paint.stage.strokes["stroke_other_123"]?.points).toHaveLength(2);
+  // Ownership is enforced: strangers cannot extend or undo another's stroke.
+  session.receive(paint("paint_1234_c", { kind: "paint", op: "append", space: "stage", strokeId: "stroke_other_123", points: [[0.9, 0.9]] }, self));
+  session.receive(paint("paint_1234_d", { kind: "paint", op: "undo", space: "stage", strokeId: "stroke_other_123" }, self));
+  expect(session.getSnapshot().paint.stage.strokes["stroke_other_123"]?.points).toHaveLength(2);
+  // Own echoes fold into the shared log.
+  session.receive(paint("paint_1234_e", { kind: "paint", op: "begin", space: "stage", strokeId: "stroke_local_123", point: [0.5, 0.5] }, self));
+  expect(session.getSnapshot().paint.stage.order).toEqual(["stroke_other_123", "stroke_local_123"]);
+  session.receive(paint("paint_1234_f", { kind: "paint", op: "undo", space: "stage", strokeId: "stroke_other_123" }, other));
+  expect(session.getSnapshot().paint.stage.order).toEqual(["stroke_local_123"]);
+  // A snapshot replaces only its own space's board; sync ticks are per space.
+  session.receive(paint("paint_1234_g", { kind: "paint", op: "snapshot", space: "stage", strokes: [
+    { id: "stroke_snap_123", by: "other_peer_1234", points: [[0, 0], [1, 1]] }] }, other));
+  expect(session.getSnapshot().paint.stage.order).toEqual(["stroke_snap_123"]);
+  expect(session.getSnapshot().paint.panel.order).toEqual(["stroke_other_123"]);
+  const tick = session.getSnapshot().paintSyncTick;
+  session.receive(paint("paint_1234_h", { kind: "paint", op: "sync-request", space: "panel" }, other));
+  expect(session.getSnapshot().paintSyncTick.panel).toBe(tick.panel + 1);
+  expect(session.getSnapshot().paintSyncTick.stage).toBe(tick.stage);
+  // Clear empties only its own space.
+  session.receive(paint("paint_1234_i", { kind: "paint", op: "clear", space: "stage" }, other));
+  expect(session.getSnapshot().paint.stage.order).toEqual([]);
+  expect(session.getSnapshot().paint.panel.order).toEqual(["stroke_other_123"]);
+  session.disconnected();
+  expect(session.getSnapshot().paint.panel.order).toEqual([]);
+  session.close();
+});
+
 test("rejection and timeout leave delivery unconfirmed without automatic retries", () => {
   const { session, send } = setup();
   session.receive({ type: "room-interactions-ready", serverTime: Date.now() });

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LASER_PHASES, MAX_CHAT_CODE_POINTS, normalizeChatText, REACTION_IDS, isThrow } from "./room-interactions.js";
+import { LASER_PHASES, MAX_CHAT_CODE_POINTS, PAINT_APPEND_POINT_LIMIT, PAINT_COLORS, PAINT_OPS, PAINT_SNAPSHOT_POINT_LIMIT, PAINT_SNAPSHOT_STROKE_LIMIT, PAINT_SPACES, PAINT_STROKE_POINT_LIMIT, normalizeChatText, REACTION_IDS, isThrow, type PaintOp } from "./room-interactions.js";
 
 import { MAX_ENDPOINT_MEDIA_COPY_CAPACITY } from "./media-copy-accounting.js";
 import { isCanonicalVideoCodecEvidence } from "./video-codec-evidence.js";
@@ -66,6 +66,15 @@ const opaqueIdSchema = z
   .max(128)
   .regex(/^[A-Za-z0-9_-]+$/);
 
+// Board coordinates are normalized to the shared picture, so every viewer
+// maps strokes onto its own letterboxed video rectangle.
+const paintPointSchema = z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)]);
+const paintColorSchema = z.number().int().min(0).max(PAINT_COLORS.length - 1);
+const paintStrokeSchema = z.object({ id: opaqueIdSchema, by: opaqueIdSchema,
+  color: paintColorSchema.optional(),
+  points: z.array(paintPointSchema).min(1).max(PAINT_STROKE_POINT_LIMIT) }).strict();
+export type PaintStrokeWire = z.infer<typeof paintStrokeSchema>;
+
 export const interactionPayloadSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("chat"), text: z.string().min(1).max(MAX_CHAT_CODE_POINTS * 2)
     .refine(value => normalizeChatText(value) === value) }).strict(),
@@ -75,8 +84,39 @@ export const interactionPayloadSchema = z.discriminatedUnion("kind", [
   // viewer maps them onto its own letterboxed video rectangle.
   z.object({ kind: z.literal("laser"), x: z.number().min(0).max(1), y: z.number().min(0).max(1),
     phase: z.enum(LASER_PHASES) }).strict(),
+  z.object({ kind: z.literal("paint"), op: z.enum(PAINT_OPS), space: z.enum(PAINT_SPACES),
+    strokeId: opaqueIdSchema.optional(), point: paintPointSchema.optional(),
+    color: paintColorSchema.optional(),
+    points: z.array(paintPointSchema).min(1).max(PAINT_APPEND_POINT_LIMIT).optional(),
+    strokes: z.array(paintStrokeSchema).min(1).max(PAINT_SNAPSHOT_STROKE_LIMIT).optional() }).strict(),
 ]).refine(payload => payload.kind !== "reaction" || !isThrow(payload.reaction) || !!payload.targetPeerId,
-  { message: "Throwing a prop requires a participant" });
+  { message: "Throwing a prop requires a participant" })
+  .refine(payload => payload.kind !== "paint" || validPaintPayload(payload),
+    { message: "Paint op does not carry its required fields" });
+
+function validPaintPayload(payload: { op: PaintOp; strokeId?: string; point?: [number, number];
+  color?: number; points?: [number, number][]; strokes?: PaintStrokeWire[] }): boolean {
+  switch (payload.op) {
+    case "begin": return !!payload.strokeId && !!payload.point && !payload.points && !payload.strokes;
+    case "append": return !!payload.strokeId && !!payload.points && !payload.point && !payload.strokes &&
+      payload.color === undefined;
+    case "end": case "undo": return !!payload.strokeId && !payload.point && !payload.points && !payload.strokes &&
+      payload.color === undefined;
+    case "clear": case "sync-request": return !payload.strokeId && !payload.point && !payload.points &&
+      !payload.strokes && payload.color === undefined;
+    case "snapshot": {
+      if (!payload.strokes || payload.point || payload.points || payload.strokeId ||
+        payload.color !== undefined) return false;
+      let total = 0;
+      for (const stroke of payload.strokes) {
+        total += stroke.points.length;
+        if (total > PAINT_SNAPSHOT_POINT_LIMIT) return false;
+      }
+      return true;
+    }
+    default: return false;
+  }
+}
 export type InteractionPayload = z.infer<typeof interactionPayloadSchema>;
 
 const noMediaRouteUpstreamSchema = z

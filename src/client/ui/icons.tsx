@@ -51,6 +51,7 @@ const PATHS = {
   moon: { body: (<><path pathLength={1} d="M20.2 14.2A8.5 8.5 0 1 1 9.8 3.8a7 7 0 1 0 10.4 10.4Z"/></>) },
   pencil: { body: (<><path pathLength={1} d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/></>) },
   laser: { body: (<><circle pathLength={1} cx="12" cy="12" r="3"/><path pathLength={1} d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></>) },
+  palette: { body: (<><path pathLength={1} d="M12 3a9 9 0 1 0 0 18c1.6 0 2.2-.9 2.2-2 0-1-.8-1.5-.8-2.5 0-1.3 1-2.3 2.3-2.3h1.6A4.7 4.7 0 0 0 22 9.5C22 5.4 17.4 3 12 3Z"/><circle pathLength={1} cx="7" cy="10.5" r="1.2"/><circle pathLength={1} cx="10.5" cy="7" r="1.2"/><circle pathLength={1} cx="15" cy="6.8" r="1.2"/></>) },
   link: { body: (<><path pathLength={1} d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path pathLength={1} d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>) },
   linkOff: { body: (<><path pathLength={1} d="M10 13a5 5 0 0 0 7.54.54l1.1-1.1M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><path pathLength={1} d="m3 3 18 18"/></>) },
   arrowRight: { body: (<><path pathLength={1} d="M4 12h16m-6.5-6.5L20 12l-6.5 6.5"/></>) },

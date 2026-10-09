@@ -27,6 +27,7 @@ import type { CouchEntry } from "../components/living/Couch";
 import { RoomInteractions } from "../components/living/RoomInteractions";
 import { RoomChatOverlay, RoomChatToggle } from "../components/living/RoomChatOverlay";
 import { RoomLaser } from "../components/living/RoomLaser";
+import { RoomPaint } from "../components/living/RoomPaint";
 import type { RoomInteractionSession } from "../lib/room-interactions";
 import { getRuntimeCapabilities } from "../lib/api";
 import { participantColor } from "../components/living/participant-color";
@@ -2223,6 +2224,8 @@ export function ViewerPage({
               onEnded={invalidateQualityPresentation}
             />
             <RoomLaser session={interactionSession} videoRef={videoRef}
+              active={presentation.overlay === "none" && presentation.hasCurrentFrame} />
+            <RoomPaint session={interactionSession} videoRef={videoRef} isHost={false}
               active={presentation.overlay === "none" && presentation.hasCurrentFrame} />
             <PlaybackControls
               extraActions={<RoomChatToggle session={interactionSession} />}
